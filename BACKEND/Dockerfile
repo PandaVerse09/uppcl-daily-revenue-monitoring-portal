@@ -1,10 +1,21 @@
 # syntax=docker/dockerfile:1
-FROM node:20-alpine AS deps
+########################
+# Base image
+########################
+# Pinned to an exact patch release, not a floating `node:22-alpine`: 22.23.4 is the first
+# 22.x carrying the fix for CVE-2026-111497 ("Node2Shell"), an out-of-bounds write in the
+# Brotli decoder bundled into the node binary (node:zlib). It is reached by anything that
+# decodes a `br` body - axios, fetch() and node-fetch all decode `br` responses. A floating
+# tag can resolve to a stale cached image on the build host and silently ship the
+# vulnerable runtime. Node 20 is EOL and has no fix at all. Both stages MUST use the same tag.
+# Advisory: https://nodejs.org/en/blog/vulnerability/october-2026-security-releases
+
+FROM node:22.23.4-alpine AS deps
 WORKDIR /usr/src/app
 COPY package*.json ./
 RUN npm ci --only=production
 
-FROM node:20-alpine
+FROM node:22.23.4-alpine
 WORKDIR /usr/src/app
 
 # Give the base image's built-in `node` user ownership of WORKDIR itself. This
